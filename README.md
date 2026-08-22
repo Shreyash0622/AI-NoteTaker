@@ -76,3 +76,25 @@ docker compose down -v  # Stop services and delete local data
 ```
 
 The initial worker is intentionally small and only verifies Redis connectivity. Queue processors can be added in `workers/` as meeting transcription and note-generation workflows are introduced.
+
+## Ingest a meeting
+
+`POST /meetings/ingest` returns `202 Accepted` as soon as the meeting is persisted and the `meeting-ingest` Redis job is queued. Provide exactly one input:
+
+Raw transcript JSON:
+
+```bash
+curl -X POST http://localhost:3000/meetings/ingest ^
+   -H "Content-Type: application/json" ^
+   -d "{\"title\":\"Weekly sync\",\"transcript\":\"Discussion text\"}"
+```
+
+Audio upload (`audio` is the multipart field):
+
+```bash
+curl -X POST http://localhost:3000/meetings/ingest ^
+   -F "title=Weekly sync" ^
+   -F "audio=@meeting.mp3"
+```
+
+Both requests return `{ "meetingId": "..." }`. The endpoint validates a nonblank title, accepts audio files up to 100 MB, and rejects requests containing both or neither input.
