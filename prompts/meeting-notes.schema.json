@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "type": "object",
+  "required": ["summary", "decisions", "actionItems", "openQuestions"],
+  "properties": {
+    "summary": { "type": "string" },
+    "decisions": { "type": "array", "items": { "type": "string" } },
+    "actionItems": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "required": ["task"],
+        "properties": {
+          "task": { "type": "string" },
+          "owner": { "type": ["string", "null"] },
+          "dueDate": { "type": ["string", "null"] }
+        },
+        "additionalProperties": false
+      }
+    },
+    "openQuestions": { "type": "array", "items": { "type": "string" } }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,78 @@
+# AI Note Taker Backend
+
+Node.js + Express + TypeScript backend for an AI meeting-notes application. PostgreSQL stores meeting data, Redis is available for background jobs, and Prisma provides database access.
+
+## Project layout
+
+```text
+api/        Express app and HTTP routes
+workers/    Background job processors
+db/         Prisma schema, client, and migrations
+prompts/    LLM prompts and output schemas
+```
+
+## Prerequisites
+
+- Node.js 20 or newer
+- Docker Desktop with Compose
+
+## Run locally
+
+1. Install dependencies:
+
+   ```bash
+   npm install
+   ```
+
+2. Start PostgreSQL and Redis:
+
+   ```bash
+   docker compose up -d
+   ```
+
+3. Create the local environment file:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   On Windows PowerShell, use `Copy-Item .env.example .env` instead.
+
+4. Generate the Prisma client and apply the committed migration:
+
+   ```bash
+   npm run db:generate
+   npm run db:deploy
+   ```
+
+   For later schema changes during development, use `npm run db:migrate -- --name <change-name>`.
+
+5. Start the API in watch mode:
+
+   ```bash
+   npm run dev
+   ```
+
+   The API listens on `http://localhost:3000`. Check it with `GET /health`.
+
+6. In a second terminal, start the worker:
+
+   ```bash
+   npm run worker
+   ```
+
+## Useful commands
+
+```bash
+npm run build          # Compile TypeScript to dist/
+npm start              # Run the compiled API
+npm run db:deploy      # Apply committed migrations
+npm run db:studio      # Open Prisma Studio
+npm run worker:build   # Run the compiled worker
+
+docker compose logs -f postgres redis
+docker compose down     # Stop services and keep volumes
+docker compose down -v  # Stop services and delete local data
+```
+
+The initial worker is intentionally small and only verifies Redis connectivity. Queue processors can be added in `workers/` as meeting transcription and note-generation workflows are introduced.
