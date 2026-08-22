@@ -8,11 +8,57 @@ datasource db {
 }
 
 model Meeting {
+  id         String        @id @default(cuid())
+  title      String
+  source     MeetingSource
+  status     MeetingStatus @default(pending)
+  createdAt  DateTime      @default(now())
+  transcript Transcript?
+  note       Note?
+}
+
+model Transcript {
   id        String   @id @default(cuid())
-  title     String
-  status    String   @default("pending")
-  transcript String?
-  notes     Json?
+  meetingId String   @unique
+  rawText   String
+  diarized  Json
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  meeting   Meeting  @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+}
+
+model Note {
+  id            String       @id @default(cuid())
+  meetingId     String       @unique
+  summary       String
+  topics        Json
+  decisions     Json
+  actionItems   Json
+  openQuestions Json
+  schemaVersion String
+  createdAt     DateTime     @default(now())
+  meeting       Meeting      @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  items         ActionItem[]
+}
+
+model ActionItem {
+  id          String    @id @default(cuid())
+  noteId      String
+  task        String
+  owner       String?
+  dueDate     DateTime?
+  sourceQuote String?
+  verified    Boolean   @default(false)
+  note        Note      @relation(fields: [noteId], references: [id], onDelete: Cascade)
+}
+
+enum MeetingSource {
+  upload
+  meet
+}
+
+enum MeetingStatus {
+  pending
+  processing
+  completed
+  failed
 }
