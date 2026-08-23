@@ -86,19 +86,41 @@ The worker consumes the BullMQ `process-meeting` queue. Jobs contain `{ meetingI
 Raw transcript JSON:
 
 ```bash
-curl -X POST http://localhost:3000/meetings/ingest ^
-   -H "Content-Type: application/json" ^
-   -d "{\"title\":\"Weekly sync\",\"transcript\":\"Discussion text\"}"
+curl -X POST http://localhost:3000/meetings/ingest \
+   -H "Content-Type: application/json" \
+   -d '{"title":"Weekly sync","transcript":"Discussion text"}'
+```
+
+On Windows PowerShell, use `curl.exe` and the PowerShell line-continuation character:
+
+```powershell
+curl.exe -X POST http://localhost:3000/meetings/ingest `
+   -H "Content-Type: application/json" `
+   -d '{"title":"Weekly sync","transcript":"Discussion text"}'
 ```
 
 Audio upload (`audio` is the multipart field):
 
 ```bash
-curl -X POST http://localhost:3000/meetings/ingest ^
-   -F "title=Weekly sync" ^
+curl -X POST http://localhost:3000/meetings/ingest \
+   -F "title=Weekly sync" \
+   -F "audio=@meeting.mp3"
+```
+
+On Windows PowerShell:
+
+```powershell
+curl.exe -X POST http://localhost:3000/meetings/ingest `
+   -F "title=Weekly sync" `
    -F "audio=@meeting.mp3"
 ```
 
 Both requests return `{ "meetingId": "..." }`. The endpoint validates a nonblank title, accepts audio files up to 100 MB, and rejects requests containing both or neither input.
 
 Once processing finishes, retrieve the saved note and normalized action items with `GET /meetings/:id/notes`.
+
+## Free deployment
+
+The included `render.yaml` targets Render's free web-service tier. Connect the repository in Render and create a Blueprint from that file. Add free-tier `DATABASE_URL` and `REDIS_URL` values from Neon and Upstash, respectively, plus `GEMINI_API_KEY`; `SLACK_WEBHOOK_URL` is optional.
+
+The Docker service runs the API and BullMQ worker together because Render's separate background-worker service is not free. Render's free service sleeps when idle, so this is suitable for a student demo rather than reliable production processing. The GitHub Actions workflow runs tests and builds the same image on every push.
