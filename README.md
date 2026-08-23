@@ -86,16 +86,32 @@ The worker consumes the BullMQ `process-meeting` queue. Jobs contain `{ meetingI
 Raw transcript JSON:
 
 ```bash
-curl -X POST http://localhost:3000/meetings/ingest ^
-   -H "Content-Type: application/json" ^
-   -d "{\"title\":\"Weekly sync\",\"transcript\":\"Discussion text\"}"
+curl -X POST http://localhost:3000/meetings/ingest \
+   -H "Content-Type: application/json" \
+   -d '{"title":"Weekly sync","transcript":"Discussion text"}'
+```
+
+On Windows PowerShell, use `curl.exe` and the PowerShell line-continuation character:
+
+```powershell
+curl.exe -X POST http://localhost:3000/meetings/ingest `
+   -H "Content-Type: application/json" `
+   -d '{"title":"Weekly sync","transcript":"Discussion text"}'
 ```
 
 Audio upload (`audio` is the multipart field):
 
 ```bash
-curl -X POST http://localhost:3000/meetings/ingest ^
-   -F "title=Weekly sync" ^
+curl -X POST http://localhost:3000/meetings/ingest \
+   -F "title=Weekly sync" \
+   -F "audio=@meeting.mp3"
+```
+
+On Windows PowerShell:
+
+```powershell
+curl.exe -X POST http://localhost:3000/meetings/ingest `
+   -F "title=Weekly sync" `
    -F "audio=@meeting.mp3"
 ```
 
