@@ -10,6 +10,7 @@
   "scripts": {
     "dev": "tsx watch api/server.ts",
     "build": "tsc -p tsconfig.json",
+    "test": "tsx --test tests/verify-action-items.test.ts tests/worker-retry.test.ts",
     "test:notes": "ts-node --esm scripts/test-generate-notes.ts",
     "start": "node dist/api/server.js",
     "worker": "tsx workers/meeting-notes.worker.ts",

@@ -1,4 +1,5 @@
 import { Queue } from "bullmq";
+import { meetingJobOptions } from "../workers/jobOptions.js";
 
 const redisUrl = new URL(process.env.REDIS_URL ?? "redis://localhost:6379");
 
@@ -11,8 +12,7 @@ export const processMeetingQueue = new Queue("process-meeting", {
     db: redisUrl.pathname ? Number(redisUrl.pathname.slice(1)) || 0 : 0,
   },
   defaultJobOptions: {
-    attempts: 3,
-    backoff: { type: "exponential", delay: 1000 },
+    ...meetingJobOptions,
     removeOnComplete: 100,
     removeOnFail: 1000,
   },
