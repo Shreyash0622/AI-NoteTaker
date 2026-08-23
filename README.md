@@ -38,6 +38,8 @@ prompts/    LLM prompts and output schemas
 
    On Windows PowerShell, use `Copy-Item .env.example .env` instead.
 
+   Set `GEMINI_API_KEY` in `.env` using a key from [Google AI Studio](https://aistudio.google.com/api-keys). The note worker uses the current Gemini Flash model configured in `prompts/generateNotes.ts` and does not require a credit card for the free tier.
+
 4. Generate the Prisma client and apply the committed migration:
 
    ```bash
@@ -79,7 +81,7 @@ The worker consumes the BullMQ `process-meeting` queue. Jobs contain `{ meetingI
 
 ## Ingest a meeting
 
-`POST /meetings/ingest` returns `202 Accepted` as soon as the meeting is persisted and the `meeting-ingest` Redis job is queued. Provide exactly one input:
+`POST /meetings/ingest` returns `202 Accepted` as soon as the meeting is persisted and the `process-meeting` BullMQ job is queued. Provide exactly one input:
 
 Raw transcript JSON:
 

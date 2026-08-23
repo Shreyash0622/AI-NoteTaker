@@ -2,26 +2,7 @@ import "dotenv/config";
 import { Worker, type Job } from "bullmq";
 import { Prisma, MeetingStatus } from "@prisma/client";
 import { prisma } from "../db/client.js";
-
-type GeneratedNotes = {
-  summary: string;
-  topics: Prisma.InputJsonValue;
-  decisions: Prisma.InputJsonValue;
-  actionItems: Prisma.InputJsonValue;
-  openQuestions: Prisma.InputJsonValue;
-  schemaVersion: string;
-};
-
-export async function generateNotes(transcript: string): Promise<GeneratedNotes> {
-  return {
-    summary: `Placeholder notes for transcript (${transcript.length} characters)`,
-    topics: [],
-    decisions: [],
-    actionItems: [],
-    openQuestions: [],
-    schemaVersion: "1",
-  };
-}
+import { generateNotes } from "../prompts/generateNotes.js";
 
 const redisUrl = new URL(process.env.REDIS_URL ?? "redis://localhost:6379");
 const connection = {
@@ -59,8 +40,23 @@ async function processMeeting(job: Job<{ meetingId: string }>): Promise<void> {
     const notes = await generateNotes(meeting.transcript.rawText);
     await prisma.note.upsert({
       where: { meetingId },
-      create: { meetingId, ...notes },
-      update: notes,
+      create: {
+        meetingId,
+        summary: notes.summary,
+        topics: notes.topics as Prisma.InputJsonValue,
+        decisions: notes.decisions as Prisma.InputJsonValue,
+        actionItems: notes.action_items as Prisma.InputJsonValue,
+        openQuestions: notes.open_questions as Prisma.InputJsonValue,
+        schemaVersion: "1",
+      },
+      update: {
+        summary: notes.summary,
+        topics: notes.topics as Prisma.InputJsonValue,
+        decisions: notes.decisions as Prisma.InputJsonValue,
+        actionItems: notes.action_items as Prisma.InputJsonValue,
+        openQuestions: notes.open_questions as Prisma.InputJsonValue,
+        schemaVersion: "1",
+      },
     });
     await prisma.meeting.update({
       where: { id: meetingId },
