@@ -59,6 +59,7 @@ enum MeetingSource {
 enum MeetingStatus {
   pending
   processing
+  done
   completed
   failed
 }

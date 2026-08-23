@@ -75,7 +75,7 @@ docker compose down     # Stop services and keep volumes
 docker compose down -v  # Stop services and delete local data
 ```
 
-The initial worker is intentionally small and only verifies Redis connectivity. Queue processors can be added in `workers/` as meeting transcription and note-generation workflows are introduced.
+The worker consumes the BullMQ `process-meeting` queue. Jobs contain `{ meetingId }`, retry up to three times with exponential backoff, and are retained for debugging after completion or failure. Replace `generateNotes` in `workers/meeting-notes.worker.ts` with the LLM integration.
 
 ## Ingest a meeting
 
