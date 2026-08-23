@@ -3,6 +3,7 @@ import { Worker, type Job } from "bullmq";
 import { Prisma, MeetingStatus } from "@prisma/client";
 import { prisma } from "../db/client.js";
 import { generateNotes } from "../prompts/generateNotes.js";
+import { postToSlack } from "../api/slack.js";
 
 const redisUrl = new URL(process.env.REDIS_URL ?? "redis://localhost:6379");
 const connection = {
@@ -38,26 +39,56 @@ async function processMeeting(job: Job<{ meetingId: string }>): Promise<void> {
     });
 
     const notes = await generateNotes(meeting.transcript.rawText);
-    await prisma.note.upsert({
-      where: { meetingId },
-      create: {
-        meetingId,
-        summary: notes.summary,
-        topics: notes.topics as Prisma.InputJsonValue,
-        decisions: notes.decisions as Prisma.InputJsonValue,
-        actionItems: notes.action_items as Prisma.InputJsonValue,
-        openQuestions: notes.open_questions as Prisma.InputJsonValue,
-        schemaVersion: "1",
-      },
-      update: {
-        summary: notes.summary,
-        topics: notes.topics as Prisma.InputJsonValue,
-        decisions: notes.decisions as Prisma.InputJsonValue,
-        actionItems: notes.action_items as Prisma.InputJsonValue,
-        openQuestions: notes.open_questions as Prisma.InputJsonValue,
-        schemaVersion: "1",
-      },
+    const savedNote = await prisma.$transaction(async (transaction) => {
+      const note = await transaction.note.upsert({
+        where: { meetingId },
+        create: {
+          meetingId,
+          summary: notes.summary,
+          topics: notes.topics as Prisma.InputJsonValue,
+          decisions: notes.decisions as Prisma.InputJsonValue,
+          actionItems: notes.action_items as Prisma.InputJsonValue,
+          openQuestions: notes.open_questions as Prisma.InputJsonValue,
+          schemaVersion: "1",
+        },
+        update: {
+          summary: notes.summary,
+          topics: notes.topics as Prisma.InputJsonValue,
+          decisions: notes.decisions as Prisma.InputJsonValue,
+          actionItems: notes.action_items as Prisma.InputJsonValue,
+          openQuestions: notes.open_questions as Prisma.InputJsonValue,
+          schemaVersion: "1",
+        },
+      });
+
+      await transaction.actionItem.deleteMany({ where: { noteId: note.id } });
+      await transaction.actionItem.createMany({
+        data: notes.action_items.map((item) => ({
+          noteId: note.id,
+          task: item.task,
+          owner: item.owner || null,
+          dueDate: parseDueDate(item.due_date),
+          sourceQuote: item.source_quote,
+        })),
+      });
+
+      return transaction.note.findUniqueOrThrow({
+        where: { id: note.id },
+        include: { items: true },
+      });
     });
+
+    try {
+      await postToSlack(savedNote);
+    } catch (error) {
+      console.error(
+        JSON.stringify({
+          event: "meeting.slack_failed",
+          meetingId,
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      );
+    }
     await prisma.meeting.update({
       where: { id: meetingId },
       data: { status: MeetingStatus.done },
@@ -71,6 +102,11 @@ async function processMeeting(job: Job<{ meetingId: string }>): Promise<void> {
     }
     throw error;
   }
+}
+
+function parseDueDate(value: string): Date | null {
+  const date = new Date(value);
+  return value.trim() && !Number.isNaN(date.getTime()) ? date : null;
 }
 
 const worker = new Worker("process-meeting", processMeeting, {

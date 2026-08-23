@@ -76,3 +76,17 @@ meetingsRouter.post(
     response.status(202).json({ meetingId: meeting.id });
   },
 );
+
+meetingsRouter.get("/:id/notes", async (request, response) => {
+  const note = await prisma.note.findUnique({
+    where: { meetingId: request.params.id },
+    include: { items: true },
+  });
+
+  if (!note) {
+    response.status(404).json({ error: "Notes not found" });
+    return;
+  }
+
+  response.json(note);
+});

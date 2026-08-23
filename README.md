@@ -38,7 +38,7 @@ prompts/    LLM prompts and output schemas
 
    On Windows PowerShell, use `Copy-Item .env.example .env` instead.
 
-   Set `GEMINI_API_KEY` in `.env` using a key from [Google AI Studio](https://aistudio.google.com/api-keys). The note worker uses the current Gemini Flash model configured in `prompts/generateNotes.ts` and does not require a credit card for the free tier.
+   Set `GEMINI_API_KEY` in `.env` using a key from [Google AI Studio](https://aistudio.google.com/api-keys). The note worker uses the current Gemini Flash model configured in `prompts/generateNotes.ts` and does not require a credit card for the free tier. Set `SLACK_WEBHOOK_URL` to enable optional Slack notifications.
 
 4. Generate the Prisma client and apply the committed migration:
 
@@ -100,3 +100,5 @@ curl -X POST http://localhost:3000/meetings/ingest ^
 ```
 
 Both requests return `{ "meetingId": "..." }`. The endpoint validates a nonblank title, accepts audio files up to 100 MB, and rejects requests containing both or neither input.
+
+Once processing finishes, retrieve the saved note and normalized action items with `GET /meetings/:id/notes`.
