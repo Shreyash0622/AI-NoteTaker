@@ -12,6 +12,7 @@ model Meeting {
   title      String
   source     MeetingSource
   status     MeetingStatus @default(pending)
+  audioPath  String?
   createdAt  DateTime      @default(now())
   transcript Transcript?
   note       Note?

@@ -1,5 +1,8 @@
 import { Router } from "express";
+import { mkdir, writeFile } from "node:fs/promises";
 import multer from "multer";
+import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { MeetingSource } from "@prisma/client";
 import { prisma } from "../../db/client.js";
@@ -49,11 +52,23 @@ meetingsRouter.post(
       return;
     }
 
+    let audioPath: string | undefined;
+    if (request.file) {
+      const uploadsDirectory = path.join(process.cwd(), "uploads");
+      await mkdir(uploadsDirectory, { recursive: true });
+      audioPath = path.join(
+        uploadsDirectory,
+        `${randomUUID()}${path.extname(request.file.originalname).toLowerCase() || ".mp3"}`,
+      );
+      await writeFile(audioPath, request.file.buffer);
+    }
+
     const meeting = await prisma.meeting.create({
       data: {
         title,
         source: meetingSource,
         status: "pending",
+        audioPath,
         transcript: transcript
           ? {
               create: {

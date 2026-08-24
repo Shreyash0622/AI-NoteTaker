@@ -4,6 +4,7 @@ import { prisma } from "../db/client.js";
 import { generateNotes } from "../prompts/generateNotes.js";
 import { postToSlack } from "../api/slack.js";
 import { verifyActionItems } from "./verifyActionItems.js";
+import { transcribeAudio } from "./transcribeAudio.js";
 
 export function createMeetingProcessor(
   dependencies: {
@@ -28,19 +29,31 @@ export function createMeetingProcessor(
       }
       meetingIdForFailure = meeting.id;
 
-      if (!meeting.transcript) {
-        throw new Error(`Transcript for meeting ${meetingId} was not found`);
-      }
-
       await dependencies.prisma.meeting.update({
         where: { id: meetingId },
         data: { status: MeetingStatus.processing },
       });
 
-      const notes = await dependencies.generateNotes(meeting.transcript.rawText);
+      let transcript = meeting.transcript;
+      if (!transcript && meeting.audioPath) {
+        const transcription = await transcribeAudio(meeting.audioPath, meetingId);
+        transcript = await dependencies.prisma.transcript.create({
+          data: {
+            meetingId,
+            rawText: transcription.text,
+            diarized: transcription.segments as Prisma.InputJsonValue,
+          },
+        });
+      }
+
+      if (!transcript) {
+        throw new Error(`Transcript for meeting ${meetingId} was not found`);
+      }
+
+      const notes = await dependencies.generateNotes(transcript.rawText);
       const verifiedActionItems = verifyActionItems(
         notes.action_items,
-        meeting.transcript.rawText,
+        transcript.rawText,
       );
       const savedNote = await dependencies.prisma.$transaction(async (transaction) => {
         const note = await transaction.note.upsert({
