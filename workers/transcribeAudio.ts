@@ -23,7 +23,7 @@ export async function transcribeAudio(
   const outputPath = path.join(outputDirectory, `${meetingId}.json`);
   await mkdir(outputDirectory, { recursive: true });
 
-  const python = process.env.PYTHON_BIN ?? (process.platform === "win32" ? "python" : "python3");
+  const python = process.env.PYTHON_BIN || (process.platform === "win32" ? "python" : "python3");
   await execFileAsync(python, [
     path.join(process.cwd(), "scripts", "transcribe_audio.py"),
     audioPath,

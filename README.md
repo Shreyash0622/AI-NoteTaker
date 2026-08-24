@@ -47,6 +47,8 @@ prompts/    LLM prompts and output schemas
 
    Set `GEMINI_API_KEY` in `.env` using a key from [Google AI Studio](https://aistudio.google.com/api-keys), and set `GROQ_API_KEY` using a key from [Groq Console](https://console.groq.com/keys). Groq's free developer tier is suitable for this demo but has usage limits. Set `SLACK_WEBHOOK_URL` to enable optional Slack notifications.
 
+   Set `APP_URL` to the public API origin when deployed, for example `https://your-service.onrender.com`. Locally, the API derives the origin from the request.
+
 4. Generate the Prisma client and apply the committed migration:
 
    ```bash
@@ -122,9 +124,8 @@ curl.exe -X POST http://localhost:3000/meetings/ingest `
    -F "audio=@meeting.mp3"
 ```
 
-Both requests return `{ "meetingId": "..." }`. The endpoint validates a nonblank title, accepts audio files up to 100 MB, and rejects requests containing both or neither input.
+Both requests return `{ "notesUrl": "https://your-api-host/meetings/.../notes" }`. Open that link after processing finishes to retrieve the saved note and normalized action items. The endpoint validates a nonblank title, accepts audio files up to 100 MB, and rejects requests containing both or neither input.
 
-Once processing finishes, retrieve the saved note and normalized action items with `GET /meetings/:id/notes`.
 
 ## Standalone transcription
 

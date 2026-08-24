@@ -25,10 +25,10 @@ def transcribe(audio_path: Path, output_path: Path) -> None:
         "text": response.text,
         "segments": [
             {
-                "id": segment.id,
-                "start": segment.start,
-                "end": segment.end,
-                "text": segment.text,
+                "id": segment["id"] if isinstance(segment, dict) else segment.id,
+                "start": segment["start"] if isinstance(segment, dict) else segment.start,
+                "end": segment["end"] if isinstance(segment, dict) else segment.end,
+                "text": segment["text"] if isinstance(segment, dict) else segment.text,
             }
             for segment in (response.segments or [])
         ],

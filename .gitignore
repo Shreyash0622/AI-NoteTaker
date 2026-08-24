@@ -5,3 +5,4 @@ dist/
 uploads/
 transcripts/
 transcript.json
+*.mp3

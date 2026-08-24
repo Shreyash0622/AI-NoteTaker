@@ -12,7 +12,11 @@ services:
         sync: false
       - key: GEMINI_API_KEY
         sync: false
+      - key: GROQ_API_KEY
+        sync: false
       - key: SLACK_WEBHOOK_URL
         sync: false
       - key: NODE_ENV
         value: production
+      - key: APP_URL
+        sync: false
