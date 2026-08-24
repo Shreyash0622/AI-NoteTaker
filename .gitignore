@@ -2,3 +2,7 @@ node_modules/
 dist/
 .env
 *.log
+uploads/
+transcripts/
+transcript.json
+*.mp3

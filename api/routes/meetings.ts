@@ -1,5 +1,8 @@
 import { Router } from "express";
+import { mkdir, writeFile } from "node:fs/promises";
 import multer from "multer";
+import path from "node:path";
+import { randomUUID } from "node:crypto";
 import { z } from "zod";
 import { MeetingSource } from "@prisma/client";
 import { prisma } from "../../db/client.js";
@@ -9,7 +12,12 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 100 * 1024 * 1024 },
   fileFilter: (_request, file, callback) => {
-    callback(null, file.mimetype.startsWith("audio/"));
+    const extension = path.extname(file.originalname).toLowerCase();
+    const isAudioMimeType = file.mimetype.startsWith("audio/");
+    const isAudioExtension = [".mp3", ".wav", ".m4a", ".ogg", ".webm", ".flac"].includes(
+      extension,
+    );
+    callback(null, isAudioMimeType || isAudioExtension);
   },
 });
 
@@ -49,11 +57,23 @@ meetingsRouter.post(
       return;
     }
 
+    let audioPath: string | undefined;
+    if (request.file) {
+      const uploadsDirectory = path.join(process.cwd(), "uploads");
+      await mkdir(uploadsDirectory, { recursive: true });
+      audioPath = path.join(
+        uploadsDirectory,
+        `${randomUUID()}${path.extname(request.file.originalname).toLowerCase() || ".mp3"}`,
+      );
+      await writeFile(audioPath, request.file.buffer);
+    }
+
     const meeting = await prisma.meeting.create({
       data: {
         title,
         source: meetingSource,
         status: "pending",
+        audioPath,
         transcript: transcript
           ? {
               create: {
@@ -73,17 +93,43 @@ meetingsRouter.post(
       return;
     }
 
-    response.status(202).json({ meetingId: meeting.id });
+    const baseUrl = (process.env.APP_URL ?? `${request.protocol}://${request.get("host")}`).replace(
+      /\/+$/,
+      "",
+    );
+    response.status(202).json({
+      notesUrl: `${baseUrl}/meetings/${encodeURIComponent(meeting.id)}/notes`,
+    });
   },
 );
 
 meetingsRouter.get("/:id/notes", async (request, response) => {
+  const meeting = await prisma.meeting.findUnique({
+    where: { id: request.params.id },
+    select: { status: true },
+  });
+
+  if (!meeting) {
+    response.status(404).json({ error: "Meeting not found" });
+    return;
+  }
+
   const note = await prisma.note.findUnique({
     where: { meetingId: request.params.id },
     include: { items: true },
   });
 
   if (!note) {
+    if (meeting.status === "pending" || meeting.status === "processing") {
+      response.status(202).json({ status: "processing" });
+      return;
+    }
+
+    if (meeting.status === "failed") {
+      response.status(500).json({ error: "Note generation failed" });
+      return;
+    }
+
     response.status(404).json({ error: "Notes not found" });
     return;
   }
