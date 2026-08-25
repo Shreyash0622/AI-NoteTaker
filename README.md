@@ -124,7 +124,7 @@ curl.exe -X POST http://localhost:3000/meetings/ingest `
    -F "audio=@meeting.mp3"
 ```
 
-Both requests return `{ "notesUrl": "https://your-api-host/meetings/.../notes" }`. Open that link after processing finishes to retrieve the saved note and normalized action items. The endpoint validates a nonblank title, accepts audio files up to 100 MB, and rejects requests containing both or neither input.
+Both requests return `{ "notesUrl": "https://your-api-host/meetings/.../notes" }`. Open that link after processing finishes to retrieve the saved note and normalized action items. While the meeting is pending or processing, `GET /meetings/:id/notes` returns `202` with `{ "status": "processing" }`. The endpoint validates a nonblank title, accepts audio files up to 25 MB, and rejects requests containing both or neither input.
 
 
 ## Standalone transcription

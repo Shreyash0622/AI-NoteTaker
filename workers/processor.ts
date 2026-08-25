@@ -1,5 +1,7 @@
 import { Prisma, MeetingStatus } from "@prisma/client";
 import type { Job } from "bullmq";
+import { rm } from "node:fs/promises";
+import path from "node:path";
 import { prisma } from "../db/client.js";
 import { generateNotes } from "../prompts/generateNotes.js";
 import { postToSlack } from "../api/slack.js";
@@ -18,6 +20,7 @@ export function createMeetingProcessor(
   ): Promise<void> {
     const { meetingId } = job.data;
     let meetingIdForFailure: string | undefined;
+    let audioPathForCleanup: string | undefined;
     try {
       const meeting = await dependencies.prisma.meeting.findUnique({
         where: { id: meetingId },
@@ -28,6 +31,7 @@ export function createMeetingProcessor(
         throw new Error(`Meeting ${meetingId} was not found`);
       }
       meetingIdForFailure = meeting.id;
+      audioPathForCleanup = meeting.audioPath ?? undefined;
 
       await dependencies.prisma.meeting.update({
         where: { id: meetingId },
@@ -44,6 +48,10 @@ export function createMeetingProcessor(
             diarized: transcription.segments as Prisma.InputJsonValue,
           },
         });
+        await removeTranscriptionFiles(
+          audioPathForCleanup,
+          path.join(process.cwd(), "transcripts", `${meetingId}.json`),
+        );
       }
 
       if (!transcript) {
@@ -112,6 +120,11 @@ export function createMeetingProcessor(
       });
     } catch (error) {
       if (meetingIdForFailure) {
+        const isFinalAttempt =
+          (job.attemptsMade ?? 0) + 1 >= (job.opts?.attempts ?? 1);
+        if (isFinalAttempt && audioPathForCleanup) {
+          await removeTranscriptionFiles(audioPathForCleanup);
+        }
         await dependencies.prisma.meeting.update({
           where: { id: meetingIdForFailure },
           data: { status: MeetingStatus.failed },
@@ -120,6 +133,28 @@ export function createMeetingProcessor(
       throw error;
     }
   };
+}
+
+async function removeTranscriptionFiles(
+  audioPath: string | undefined,
+  transcriptPath?: string,
+): Promise<void> {
+  for (const filePath of [audioPath, transcriptPath]) {
+    if (!filePath) {
+      continue;
+    }
+    try {
+      await rm(filePath, { force: true });
+    } catch (error) {
+      console.error(
+        JSON.stringify({
+          event: "meeting.transcription_cleanup_failed",
+          filePath,
+          error: error instanceof Error ? error.message : String(error),
+        }),
+      );
+    }
+  }
 }
 
 function parseDueDate(value: string): Date | null {
