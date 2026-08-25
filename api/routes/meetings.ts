@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type RequestHandler } from "express";
 import { mkdir, writeFile } from "node:fs/promises";
 import multer from "multer";
 import path from "node:path";
@@ -10,7 +10,7 @@ import { enqueueMeetingIngest } from "../queue.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 100 * 1024 * 1024 },
+  limits: { fileSize: 25 * 1024 * 1024 },
   fileFilter: (_request, file, callback) => {
     const extension = path.extname(file.originalname).toLowerCase();
     const isAudioMimeType = file.mimetype.startsWith("audio/");
@@ -20,6 +20,16 @@ const upload = multer({
     callback(null, isAudioMimeType || isAudioExtension);
   },
 });
+
+const uploadAudio: RequestHandler = (request, response, next) => {
+  upload.single("audio")(request, response, (error) => {
+    if (error instanceof multer.MulterError && error.code === "LIMIT_FILE_SIZE") {
+      response.status(400).json({ error: "Audio files must be 25MB or smaller" });
+      return;
+    }
+    next(error);
+  });
+};
 
 const ingestBodySchema = z.object({
   title: z.string().trim().min(1).max(200),
@@ -31,7 +41,7 @@ export const meetingsRouter = Router();
 
 meetingsRouter.post(
   "/ingest",
-  upload.single("audio"),
+  uploadAudio,
   async (request, response) => {
     const parsedBody = ingestBodySchema.safeParse(request.body);
     const hasAudio = Boolean(request.file);
