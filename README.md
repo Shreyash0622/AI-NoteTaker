@@ -154,8 +154,7 @@ Response shape:
          "title": "Weekly sync",
          "source": "upload",
          "status": "done",
-         "createdAt": "2026-08-26T12:34:56.000Z",
-         "updatedAt": "2026-08-26T12:35:30.000Z"
+         "createdAt": "2026-08-26T12:34:56.000Z"
       }
    ],
    "page": 1,

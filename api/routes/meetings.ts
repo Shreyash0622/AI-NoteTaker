@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type NextFunction, type Request, type Response } from "express";
 import { mkdir, writeFile } from "node:fs/promises";
 import multer from "multer";
 import path from "node:path";
@@ -27,34 +27,28 @@ const ingestBodySchema = z.object({
   source: z.enum(["upload", "meet"]).optional(),
 });
 
+const querySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+
 export const meetingsRouter = Router();
 
 meetingsRouter.get("/", async (request, response) => {
-  const pageQuery = Array.isArray(request.query.page) ? request.query.page[0] : request.query.page;
-  const pageSizeQuery = Array.isArray(request.query.pageSize)
-    ? request.query.pageSize[0]
-    : request.query.pageSize;
-
-  const page = pageQuery ? Number.parseInt(pageQuery, 10) : 1;
-  const pageSize = pageSizeQuery ? Number.parseInt(pageSizeQuery, 10) : 20;
-
-  if (!Number.isInteger(page) || page < 1) {
-    response.status(400).json({ error: "page must be a positive integer" });
+  const parsedQuery = querySchema.safeParse(request.query);
+  if (!parsedQuery.success) {
+    response.status(400).json({ error: "Invalid page or pageSize" });
     return;
   }
 
-  if (!Number.isInteger(pageSize) || pageSize < 1) {
-    response.status(400).json({ error: "pageSize must be a positive integer" });
-    return;
-  }
+  const { page, pageSize } = parsedQuery.data;
 
-  const cappedPageSize = Math.min(pageSize, 100);
-  const skip = (page - 1) * cappedPageSize;
+  const skip = (page - 1) * pageSize;
 
   const [meetings, total] = await Promise.all([
     prisma.meeting.findMany({
       skip,
-      take: cappedPageSize,
+      take: pageSize,
       orderBy: { createdAt: "desc" },
       select: {
         id: true,
@@ -62,7 +56,6 @@ meetingsRouter.get("/", async (request, response) => {
         source: true,
         status: true,
         createdAt: true,
-        updatedAt: true,
       },
     }),
     prisma.meeting.count(),
@@ -71,7 +64,7 @@ meetingsRouter.get("/", async (request, response) => {
   response.json({
     meetings,
     page,
-    pageSize: cappedPageSize,
+    pageSize,
     total,
   });
 });
@@ -150,7 +143,7 @@ meetingsRouter.post(
   },
 );
 
-meetingsRouter.use((err, req, res, next) => {
+meetingsRouter.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
   if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
     res.status(400).json({ error: "File size exceeds the 25MB limit." });
     return;
