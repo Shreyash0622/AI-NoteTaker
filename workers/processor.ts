@@ -129,8 +129,9 @@ export function createMeetingProcessor(
         });
       }
 
-      const attempts = job.opts.attempts ?? 1;
-      const isFinalAttempt = job.attemptsMade + 1 >= attempts;
+      const attempts = job.opts?.attempts ?? 1;
+      const attemptsMade = job.attemptsMade ?? 0;
+      const isFinalAttempt = attemptsMade + 1 >= attempts;
       if (isFinalAttempt && meetingAudioPathForFailure) {
         await unlinkSafely(
           meetingAudioPathForFailure,
