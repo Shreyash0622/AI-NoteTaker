@@ -47,6 +47,8 @@ prompts/    LLM prompts and output schemas
 
    Set `GEMINI_API_KEY` in `.env` using a key from [Google AI Studio](https://aistudio.google.com/api-keys), and set `GROQ_API_KEY` using a key from [Groq Console](https://console.groq.com/keys). Groq's free developer tier is suitable for this demo but has usage limits. Set `SLACK_WEBHOOK_URL` to enable optional Slack notifications.
 
+   Set `ALLOWED_ORIGINS` to your frontend origin(s), comma-separated when allowing more than one (for example, `http://localhost:5173,https://your-frontend.example.com`). If unset, the API allows `http://localhost:5173` by default.
+
    Set `APP_URL` to the public API origin when deployed, for example `https://your-service.onrender.com`. Locally, the API derives the origin from the request.
 
 4. Generate the Prisma client and apply the committed migration:
@@ -124,7 +126,43 @@ curl.exe -X POST http://localhost:3000/meetings/ingest `
    -F "audio=@meeting.mp3"
 ```
 
-Both requests return `{ "notesUrl": "https://your-api-host/meetings/.../notes" }`. Open that link after processing finishes to retrieve the saved note and normalized action items. The endpoint validates a nonblank title, accepts audio files up to 100 MB, and rejects requests containing both or neither input.
+Both requests return `{ "notesUrl": "https://your-api-host/meetings/.../notes" }`.
+
+`GET /meetings/:id/notes` is poll-friendly while processing:
+
+- Returns `202 { "status": "processing" }` when the meeting is still `pending` or `processing`
+- Returns the saved note JSON once processing is complete
+
+The ingest endpoint validates a nonblank title, accepts audio files up to 25 MB, and rejects requests containing both or neither input.
+
+## List meetings
+
+`GET /meetings` returns paginated meetings ordered by `createdAt` descending.
+
+Query params:
+
+- `page` (default `1`)
+- `pageSize` (default `20`, max `100`)
+
+Response shape:
+
+```json
+{
+   "meetings": [
+      {
+         "id": "...",
+         "title": "Weekly sync",
+         "source": "upload",
+         "status": "done",
+         "createdAt": "2026-08-26T12:34:56.000Z",
+         "updatedAt": "2026-08-26T12:35:30.000Z"
+      }
+   ],
+   "page": 1,
+   "pageSize": 20,
+   "total": 42
+}
+```
 
 
 ## Standalone transcription
