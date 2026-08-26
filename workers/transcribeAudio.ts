@@ -24,12 +24,17 @@ export async function transcribeAudio(
   await mkdir(outputDirectory, { recursive: true });
 
   const python = process.env.PYTHON_BIN || (process.platform === "win32" ? "python" : "python3");
-  await execFileAsync(python, [
-    path.join(process.cwd(), "scripts", "transcribe_audio.py"),
-    audioPath,
-    "--output",
-    outputPath,
-  ]);
+  try {
+    await execFileAsync(
+      python,
+      [path.join(process.cwd(), "scripts", "transcribe_audio.py"), audioPath, "--output", outputPath],
+      { timeout: 120000 },
+    );
+  } catch (error) {
+    const execError = error as { stderr?: string; message?: string };
+    const details = execError.stderr?.trim() || execError.message || "Unknown transcription error";
+    throw new Error(`Transcription command failed: ${details}`);
+  }
 
   const result = JSON.parse(await readFile(outputPath, "utf8")) as Partial<Transcription>;
   if (typeof result.text !== "string" || !Array.isArray(result.segments)) {
