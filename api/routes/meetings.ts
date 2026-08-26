@@ -10,7 +10,7 @@ import { enqueueMeetingIngest } from "../queue.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 100 * 1024 * 1024 },
+  limits: { fileSize: 25 * 1024 * 1024 },
   fileFilter: (_request, file, callback) => {
     const extension = path.extname(file.originalname).toLowerCase();
     const isAudioMimeType = file.mimetype.startsWith("audio/");
@@ -149,6 +149,15 @@ meetingsRouter.post(
     });
   },
 );
+
+meetingsRouter.use((err, req, res, next) => {
+  if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+    res.status(400).json({ error: "File size exceeds the 25MB limit." });
+    return;
+  }
+
+  next(err);
+});
 
 meetingsRouter.get("/:id/notes", async (request, response) => {
   const meeting = await prisma.meeting.findUnique({
