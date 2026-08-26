@@ -29,6 +29,53 @@ const ingestBodySchema = z.object({
 
 export const meetingsRouter = Router();
 
+meetingsRouter.get("/", async (request, response) => {
+  const pageQuery = Array.isArray(request.query.page) ? request.query.page[0] : request.query.page;
+  const pageSizeQuery = Array.isArray(request.query.pageSize)
+    ? request.query.pageSize[0]
+    : request.query.pageSize;
+
+  const page = pageQuery ? Number.parseInt(pageQuery, 10) : 1;
+  const pageSize = pageSizeQuery ? Number.parseInt(pageSizeQuery, 10) : 20;
+
+  if (!Number.isInteger(page) || page < 1) {
+    response.status(400).json({ error: "page must be a positive integer" });
+    return;
+  }
+
+  if (!Number.isInteger(pageSize) || pageSize < 1) {
+    response.status(400).json({ error: "pageSize must be a positive integer" });
+    return;
+  }
+
+  const cappedPageSize = Math.min(pageSize, 100);
+  const skip = (page - 1) * cappedPageSize;
+
+  const [meetings, total] = await Promise.all([
+    prisma.meeting.findMany({
+      skip,
+      take: cappedPageSize,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        source: true,
+        status: true,
+        createdAt: true,
+        updatedAt: true,
+      },
+    }),
+    prisma.meeting.count(),
+  ]);
+
+  response.json({
+    meetings,
+    page,
+    pageSize: cappedPageSize,
+    total,
+  });
+});
+
 meetingsRouter.post(
   "/ingest",
   upload.single("audio"),
