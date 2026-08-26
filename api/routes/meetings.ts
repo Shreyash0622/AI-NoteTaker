@@ -1,4 +1,4 @@
-import { Router } from "express";
+import { Router, type NextFunction, type Request, type Response } from "express";
 import { mkdir, writeFile } from "node:fs/promises";
 import multer from "multer";
 import path from "node:path";
@@ -10,7 +10,7 @@ import { enqueueMeetingIngest } from "../queue.js";
 
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 100 * 1024 * 1024 },
+  limits: { fileSize: 25 * 1024 * 1024 },
   fileFilter: (_request, file, callback) => {
     const extension = path.extname(file.originalname).toLowerCase();
     const isAudioMimeType = file.mimetype.startsWith("audio/");
@@ -27,7 +27,47 @@ const ingestBodySchema = z.object({
   source: z.enum(["upload", "meet"]).optional(),
 });
 
+const querySchema = z.object({
+  page: z.coerce.number().int().min(1).default(1),
+  pageSize: z.coerce.number().int().min(1).max(100).default(20),
+});
+
 export const meetingsRouter = Router();
+
+meetingsRouter.get("/", async (request, response) => {
+  const parsedQuery = querySchema.safeParse(request.query);
+  if (!parsedQuery.success) {
+    response.status(400).json({ error: "Invalid page or pageSize" });
+    return;
+  }
+
+  const { page, pageSize } = parsedQuery.data;
+
+  const skip = (page - 1) * pageSize;
+
+  const [meetings, total] = await Promise.all([
+    prisma.meeting.findMany({
+      skip,
+      take: pageSize,
+      orderBy: { createdAt: "desc" },
+      select: {
+        id: true,
+        title: true,
+        source: true,
+        status: true,
+        createdAt: true,
+      },
+    }),
+    prisma.meeting.count(),
+  ]);
+
+  response.json({
+    meetings,
+    page,
+    pageSize,
+    total,
+  });
+});
 
 meetingsRouter.post(
   "/ingest",
@@ -102,6 +142,15 @@ meetingsRouter.post(
     });
   },
 );
+
+meetingsRouter.use((err: unknown, req: Request, res: Response, next: NextFunction) => {
+  if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
+    res.status(400).json({ error: "File size exceeds the 25MB limit." });
+    return;
+  }
+
+  next(err);
+});
 
 meetingsRouter.get("/:id/notes", async (request, response) => {
   const meeting = await prisma.meeting.findUnique({

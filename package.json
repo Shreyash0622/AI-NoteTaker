@@ -23,7 +23,9 @@
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@prisma/client": "^6.14.0",
+    "@types/cors": "^2.8.19",
     "bullmq": "^6.2.0",
+    "cors": "^2.8.6",
     "dotenv": "^17.2.1",
     "express": "^5.1.0",
     "ioredis": "^5.7.0",
